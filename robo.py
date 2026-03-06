@@ -1,14 +1,12 @@
 import requests
-from bs4 import BeautifulSoup
 import time
-import re
 import sqlite3
+import random
 
 TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
 CHAT_ID = "-1003895577987"
 
 buscas = [
-
 "vestido feminino","lingerie","bolsa feminina","tenis feminino","tenis masculino",
 "chapinha cabelo","escova secadora","secador cabelo","depilador eletrico",
 "utensilios cozinha","panela antiaderente","organizador cozinha","air fryer",
@@ -17,10 +15,7 @@ buscas = [
 "compressor ar portatil","camera veicular","carregador veicular",
 "kit limpeza automotiva","fone bluetooth","smartwatch",
 "caixa som bluetooth","power bank","suporte celular carro"
-
 ]
-
-headers = {"User-Agent": "Mozilla/5.0"}
 
 # -------------------------
 # BANCO DE DADOS
@@ -38,178 +33,225 @@ id TEXT PRIMARY KEY
 conn.commit()
 
 # -------------------------
-# FUNÇÕES AUXILIARES
-# -------------------------
-
-def numero(txt):
-    return int(re.sub("[^0-9]", "", txt))
-
-def extrair_id(link):
-
-    match = re.search(r'MLB\d+', link)
-
-    if match:
-        return match.group()
-
-    return link
-
-def produto_existe(pid):
-
-    cursor.execute("SELECT id FROM produtos WHERE id=?",(pid,))
-    return cursor.fetchone() is not None
-
-def salvar_produto(pid):
-
-    cursor.execute("INSERT INTO produtos VALUES(?)",(pid,))
-    conn.commit()
-
-# -------------------------
 # TELEGRAM
 # -------------------------
 
-def enviar_telegram(msg,imagem):
+def enviar_telegram(msg, imagem):
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
 
     data = {
-        "chat_id":CHAT_ID,
-        "caption":msg,
-        "photo":imagem
+        "chat_id": CHAT_ID,
+        "caption": msg,
+        "photo": imagem
     }
 
-    requests.post(url,data=data)
+    requests.post(url, data=data)
+
+# -------------------------
+# HISTÓRICO
+# -------------------------
+
+def produto_existe(pid):
+
+    cursor.execute("SELECT id FROM produtos WHERE id=?", (pid,))
+    return cursor.fetchone() is not None
+
+def salvar_produto(pid):
+
+    cursor.execute("INSERT INTO produtos VALUES(?)", (pid,))
+    conn.commit()
 
 # -------------------------
 # DETECTORES
 # -------------------------
 
-def detectar_frete(card):
+def calcular_desconto(preco, preco_antigo):
 
-    txt = card.text.lower()
+    if preco_antigo == None:
+        return 0
 
-    if "frete grátis" in txt or "full" in txt:
-        return True
+    desconto = int((preco_antigo - preco) / preco_antigo * 100)
+
+    return desconto
+
+def produto_viral(vendidos):
+
+    return vendidos >= 100
+
+def erro_preco(preco, preco_antigo):
+
+    if preco_antigo == None:
+        return False
+
+    desconto = calcular_desconto(preco, preco_antigo)
+
+    return desconto >= 70
+
+def cupom_oficial(item):
+
+    try:
+
+        if item["installments"]["rate"] == 0:
+            return True
+    except:
+        pass
 
     return False
 
-
-def detectar_vendas(card):
-
-    txt = card.text.lower()
-
-    if "+100" in txt or "+500" in txt or "vendid" in txt:
-        return True
-
-    return False
-
-
-def produto_viral(card):
-
-    score = 0
-
-    if detectar_vendas(card):
-        score += 1
-
-    if detectar_frete(card):
-        score += 1
-
-    return score >= 1
-
 # -------------------------
-# BUSCA
+# PROCESSAR PRODUTO
 # -------------------------
 
-def buscar():
+def processar_produto(p):
 
-    for termo in buscas:
+    try:
 
-        print("\n🔎 Buscando:",termo)
+        pid = p["id"]
 
-        url = f"https://lista.mercadolivre.com.br/{termo.replace(' ','-')}"
+        if produto_existe(pid):
+            return False
 
-        r = requests.get(url,headers=headers)
+        titulo = p["title"]
 
-        soup = BeautifulSoup(r.text,"html.parser")
+        preco = p["price"]
 
-        cards = soup.select(".poly-card")
+        preco_antigo = p.get("original_price")
 
-        print("Produtos encontrados:",len(cards))
+        link = p["permalink"]
 
-        for card in cards[:30]:
+        imagem = p["thumbnail"]
 
-            try:
+        vendidos = p["sold_quantity"]
 
-                titulo = card.select_one(".poly-component__title").text.strip()
+        desconto = calcular_desconto(preco, preco_antigo)
 
-                link = card.select_one("a.poly-component__title")["href"]
+        viral = produto_viral(vendidos)
 
-                if "click1" in link:
-                    continue
+        erro = erro_preco(preco, preco_antigo)
 
-                produto_id = extrair_id(link)
+        cupom = cupom_oficial(p)
 
-                if produto_existe(produto_id):
-                    continue
+        if desconto < 30 and not viral and not erro and not cupom:
+            return False
 
-                preco_atual = card.select_one(".andes-money-amount__fraction")
-                preco_antigo = card.select_one(".andes-money-amount--previous .andes-money-amount__fraction")
+        alerta = ""
 
-                if not preco_antigo:
-                    continue
+        if desconto >= 50:
+            alerta += "🚨 SUPER OFERTA\n"
 
-                preco_atual = numero(preco_atual.text)
-                preco_antigo = numero(preco_antigo.text)
+        if erro:
+            alerta += "⚠️ POSSÍVEL ERRO DE PREÇO\n"
 
-                desconto = int((preco_antigo-preco_atual)/preco_antigo*100)
+        if viral:
+            alerta += "🔥 PRODUTO VIRAL\n"
 
-                if desconto < 30:
-                    continue
+        if cupom:
+            alerta += "🎟 PROMOÇÃO / CUPOM\n"
 
-                if not produto_viral(card):
-                    continue
-
-                imagem = card.select_one("img")["src"]
-
-                frete_msg=""
-
-                if detectar_frete(card):
-                    frete_msg="🚚 Frete bom\n"
-
-                msg=f"""
-🔥 ACHADINHO RELÂMPAGO
+        msg=f"""
+{alerta}
 
 🛍 {titulo}
 
 💰 De: R${preco_antigo}
-💸 Por: R${preco_atual}
+💸 Por: R${preco}
 
 🔥 {desconto}% OFF
-{frete_msg}
+📦 {vendidos} vendidos
 
 🛒 {link}
 
 ⚡ Promoção pode acabar a qualquer momento
 """
 
-                print(msg)
+        print(msg)
 
-                enviar_telegram(msg,imagem)
+        enviar_telegram(msg, imagem)
 
-                salvar_produto(produto_id)
+        salvar_produto(pid)
 
-                return
+        return True
 
-            except:
-                continue
+    except:
+        return False
 
 # -------------------------
-# LOOP
+# BUSCA NORMAL
 # -------------------------
+
+def busca_normal():
+
+    termo=random.choice(buscas)
+
+    print("\n🔎 Busca normal:", termo)
+
+    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=50"
+
+    r=requests.get(url)
+
+    data=r.json()
+
+    produtos=data["results"]
+
+    for p in produtos:
+
+        if processar_produto(p):
+
+            return True
+
+    return False
+
+# -------------------------
+# RADAR PROMOÇÕES NOVAS
+# -------------------------
+
+def radar_promocoes():
+
+    termo=random.choice(buscas)
+
+    print("\n🚨 Radar promoção:", termo)
+
+    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=date_desc&limit=50"
+
+    r=requests.get(url)
+
+    data=r.json()
+
+    produtos=data["results"]
+
+    for p in produtos:
+
+        if processar_produto(p):
+
+            return True
+
+    return False
+
+# -------------------------
+# LOOP PRINCIPAL
+# -------------------------
+
+contador=0
 
 while True:
 
-    buscar()
+    try:
 
-    print("\n⏳ Próximo achadinho em 20 minutos...\n")
+        if contador % 3 == 0:
 
-    time.sleep(1200)
+            radar_promocoes()
+
+        else:
+
+            busca_normal()
+
+        contador+=1
+
+        print("\n⏳ Próximo scan em 3 minutos...\n")
+
+        time.sleep(180)
+
+    except:
+
+        time.sleep(60)
