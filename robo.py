@@ -46,7 +46,7 @@ def enviar_telegram(msg, imagem):
         "photo": imagem
     }
 
-    requests.post(url, data=data)
+    requests.post(url, data=data, timeout=30)
 
 # -------------------------
 # HISTÓRICO
@@ -68,18 +68,14 @@ def salvar_produto(pid):
 
 def calcular_desconto(preco, preco_antigo):
 
-    if preco_antigo == None:
+    if not preco_antigo:
         return 0
 
     return int((preco_antigo - preco) / preco_antigo * 100)
 
-def produto_viral(vendidos):
-
-    return vendidos >= 100
-
 def erro_preco(preco, preco_antigo):
 
-    if preco_antigo == None:
+    if not preco_antigo:
         return False
 
     desconto = calcular_desconto(preco, preco_antigo)
@@ -89,7 +85,6 @@ def erro_preco(preco, preco_antigo):
 def cupom_oficial(item):
 
     try:
-
         if item["installments"]["rate"] == 0:
             return True
     except:
@@ -111,26 +106,18 @@ def processar_produto(p):
             return False
 
         titulo = p["title"]
-
         preco = p["price"]
-
         preco_antigo = p.get("original_price")
-
+        vendidos = p["sold_quantity"]
         link = p["permalink"]
 
-        imagem = p["thumbnail"]
-
-        vendidos = p["sold_quantity"]
+        imagem = p["thumbnail"].replace("-I.jpg","-O.jpg")
 
         desconto = calcular_desconto(preco, preco_antigo)
-
-        viral = produto_viral(vendidos)
-
         erro = erro_preco(preco, preco_antigo)
-
         cupom = cupom_oficial(p)
 
-        if desconto < 30 and not viral and not erro and not cupom:
+        if desconto < 25 and vendidos < 200 and not erro and not cupom:
             return False
 
         alerta = ""
@@ -141,7 +128,7 @@ def processar_produto(p):
         if erro:
             alerta += "⚠️ POSSÍVEL ERRO DE PREÇO\n"
 
-        if viral:
+        if vendidos >= 200:
             alerta += "🔥 PRODUTO VIRAL\n"
 
         if cupom:
@@ -182,72 +169,86 @@ def radar_normal():
 
     termo=random.choice(buscas)
 
-    print("\n🔎 Busca normal:", termo)
+    print("🔎 Busca:", termo)
 
     url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=200"
 
-    r=requests.get(url)
+    r=requests.get(url, timeout=30)
 
     data=r.json()
 
-    produtos=data["results"]
-
-    for p in produtos:
+    for p in data["results"]:
 
         if processar_produto(p):
-
             return True
 
     return False
 
 # -------------------------
-# RADAR PROMOÇÕES NOVAS
+# RADAR PROMOÇÕES
 # -------------------------
 
 def radar_promocoes():
 
     termo=random.choice(buscas)
 
-    print("\n🚨 Radar promoções:", termo)
+    print("🚨 Radar promoções:", termo)
 
     url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=date_desc&limit=200"
 
-    r=requests.get(url)
+    r=requests.get(url, timeout=30)
 
     data=r.json()
 
-    produtos=data["results"]
-
-    for p in produtos:
+    for p in data["results"]:
 
         if processar_produto(p):
-
             return True
 
     return False
 
 # -------------------------
-# RADAR MAIS VENDIDOS
+# RADAR VIRAL
 # -------------------------
 
-def radar_mais_vendidos():
+def radar_viral():
 
     termo=random.choice(buscas)
 
-    print("\n🔥 Radar mais vendidos:", termo)
+    print("🔥 Radar viral:", termo)
 
     url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=sold_quantity_desc&limit=200"
 
-    r=requests.get(url)
+    r=requests.get(url, timeout=30)
 
     data=r.json()
 
-    produtos=data["results"]
-
-    for p in produtos:
+    for p in data["results"]:
 
         if processar_produto(p):
+            return True
 
+    return False
+
+# -------------------------
+# RADAR RECÉM ATUALIZADOS
+# -------------------------
+
+def radar_recente():
+
+    termo=random.choice(buscas)
+
+    print("⚡ Radar promoções recentes:", termo)
+
+    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=last_updated_desc&limit=200"
+
+    r=requests.get(url, timeout=30)
+
+    data=r.json()
+
+    for p in data["results"]:
+
+        if processar_produto(p):
             return True
 
     return False
@@ -256,30 +257,32 @@ def radar_mais_vendidos():
 # LOOP PRINCIPAL
 # -------------------------
 
-contador=0
+contador = 0
 
 while True:
 
     try:
 
-        if contador % 3 == 0:
-
+        if contador % 4 == 0:
             radar_promocoes()
 
-        elif contador % 3 == 1:
+        elif contador % 4 == 1:
+            radar_viral()
 
-            radar_mais_vendidos()
+        elif contador % 4 == 2:
+            radar_recente()
 
         else:
-
             radar_normal()
 
-        contador+=1
+        contador += 1
 
-        print("\n⏳ Próximo scan em 3 minutos...\n")
+        print("⏳ Próximo scan em 3 minutos\n")
 
         time.sleep(180)
 
-    except:
+    except Exception as e:
+
+        print("Erro:", e)
 
         time.sleep(60)
