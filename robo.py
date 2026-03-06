@@ -1,32 +1,24 @@
-print("ROBO ACHADINHOS V7.0 INICIADO")
+print("ROBO ACHADINHOS V8.0 INICIADO")
 import requests
 from bs4 import BeautifulSoup
 import time
 import random
 
-TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
-CHAT_ID = "-1003895577987"
+TOKEN = "SEU_TOKEN"
+CHAT_ID = "SEU_CHAT_ID"
 
 buscas = [
-"vestido feminino",
-"lingerie",
-"bolsa feminina",
-"tenis feminino",
-"chapinha cabelo",
-"cafeteira",
-"air fryer",
-"panela antiaderente",
-"carrinho bebe",
-"baba eletronica",
-"aspirador automotivo",
-"compressor ar portatil",
-"carregador veicular",
 "smartwatch",
+"chapinha cabelo",
+"bolsa feminina",
+"air fryer",
+"cafeteira",
+"tenis feminino",
 "fone bluetooth"
 ]
 
 headers = {
-"User-Agent":"Mozilla/5.0"
+"User-Agent": "Mozilla/5.0"
 }
 
 def enviar(msg):
@@ -34,70 +26,92 @@ def enviar(msg):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
     data = {
-    "chat_id":CHAT_ID,
-    "text":msg
+        "chat_id": CHAT_ID,
+        "text": msg
     }
 
-    requests.post(url,data=data)
+    requests.post(url, data=data)
 
 def buscar():
 
-    termo=random.choice(buscas)
+    termo = random.choice(buscas)
 
-    print("\n🔎 Radar busca:",termo)
+    print("\n🔎 Radar busca:", termo)
 
-    url=f"https://lista.mercadolivre.com.br/{termo.replace(' ','-')}"
+    url = f"https://lista.mercadolivre.com.br/{termo.replace(' ','-')}"
 
-    r=requests.get(url,headers=headers)
+    r = requests.get(url, headers=headers)
 
-    soup=BeautifulSoup(r.text,"html.parser")
+    soup = BeautifulSoup(r.text, "html.parser")
 
-    produtos=soup.select("li.ui-search-layout__item")
+    produtos = soup.select("li.ui-search-layout__item")
 
-    print("Produtos encontrados:",len(produtos))
+    print("Produtos encontrados:", len(produtos))
 
     for p in produtos[:20]:
 
         try:
 
-            titulo=p.select_one("h2").text.strip()
+            titulo = p.select_one("h2").get_text(strip=True)
 
-            link=p.select_one("a")["href"]
+            link = p.select_one("a")["href"]
 
-            preco=p.select_one(".andes-money-amount__fraction").text
+            preco_tag = p.select_one(".andes-money-amount__fraction")
 
-            vendidos=p.text.lower()
+            if not preco_tag:
+                continue
+
+            preco = preco_tag.get_text()
+
+            texto = p.get_text().lower()
+
+            vendidos = 0
+
+            if "vendidos" in texto:
+
+                partes = texto.split("vendidos")[0].split()
+
+                vendidos = int(partes[-1])
 
             print("\nProduto analisado")
-            print(titulo)
+            print("Título:", titulo)
+            print("Preço:", preco)
+            print("Vendidos:", vendidos)
 
-            if "vendido" in vendidos:
+            if vendidos >= 50:
 
-                print("Produto popular")
+                print("✅ ACHADINHO ENCONTRADO")
 
-            msg=f"""
+                msg = f"""
 🔥 ACHADINHO ENCONTRADO
 
 🛍 {titulo}
 
 💰 R${preco}
 
+📦 {vendidos} vendidos
+
 🛒 {link}
 
 ⚡ Promoção pode acabar a qualquer momento
 """
 
-            enviar(msg)
+                enviar(msg)
 
-            return
+                return
 
-        except:
-            continue
+            else:
+
+                print("❌ reprovado")
+
+        except Exception as e:
+
+            print("Erro no produto:", e)
 
 while True:
 
     buscar()
 
-    print("\n⏳ próximo scan em 3 minutos")
+    print("\n⏳ próximo scan em 1 segundo")
 
-    time.sleep(180)
+    time.sleep(1)
