@@ -1,12 +1,11 @@
-print("ROBO ACHADINHOS FUNCIONANDO")
+print("ROBO ACHADINHOS FUNCIONANDO 2.0")
 
 import requests
-from bs4 import BeautifulSoup
 import time
 import random
 
-TOKEN = "SEU_TOKEN_AQUI"
-CHAT_ID = "SEU_CHAT_ID_AQUI"
+TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
+CHAT_ID = "-1003895577987"
 
 buscas = [
 "smartwatch",
@@ -17,12 +16,6 @@ buscas = [
 "cafeteira",
 "tenis feminino"
 ]
-
-headers = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-"Accept-Language": "pt-BR,pt;q=0.9",
-"Accept": "text/html"
-}
 
 def enviar(msg):
 
@@ -46,13 +39,13 @@ def buscar():
 
     print("\n🔎 Buscando:", termo)
 
-    url = f"https://lista.mercadolivre.com.br/{termo.replace(' ','-')}"
+    url = f"https://api.mercadolibre.com/sites/MLB/search?q={termo}"
 
-    r = requests.get(url, headers=headers)
+    r = requests.get(url)
 
-    soup = BeautifulSoup(r.text, "html.parser")
+    data = r.json()
 
-    produtos = soup.select("li.ui-search-layout__item")
+    produtos = data["results"]
 
     print("Produtos encontrados:", len(produtos))
 
@@ -60,57 +53,34 @@ def buscar():
         print("⚠️ Nenhum produto encontrado")
         return
 
-    for p in produtos[:5]:
+    produto = random.choice(produtos)
 
-        try:
+    titulo = produto["title"]
+    preco = produto["price"]
+    link = produto["permalink"]
 
-            titulo_tag = p.select_one("h2")
+    print("Produto:", titulo)
+    print("Preço:", preco)
 
-            if not titulo_tag:
-                continue
-
-            titulo = titulo_tag.get_text(strip=True)
-
-            link_tag = p.select_one("a")
-
-            if not link_tag:
-                continue
-
-            link = link_tag["href"]
-
-            preco_tag = p.select_one(".andes-money-amount__fraction")
-
-            if not preco_tag:
-                continue
-
-            preco = preco_tag.get_text()
-
-            print("Produto:", titulo)
-            print("Preço:", preco)
-
-            msg = f"""
-🔥 Produto encontrado
+    msg = f"""
+🔥 ACHADINHO ENCONTRADO
 
 🛍 {titulo}
 
 💰 R${preco}
 
 🛒 {link}
+
+⚡ Promoção pode acabar a qualquer momento
 """
 
-            enviar(msg)
-
-            return
-
-        except Exception as e:
-
-            print("Erro analisando produto:", e)
+    enviar(msg)
 
 
 while True:
 
     buscar()
 
-    print("\n⏳ aguardando 8s...")
+    print("\n⏳ aguardando 10s...")
 
-    time.sleep(8)
+    time.sleep(10)
