@@ -71,9 +71,7 @@ def calcular_desconto(preco, preco_antigo):
     if preco_antigo == None:
         return 0
 
-    desconto = int((preco_antigo - preco) / preco_antigo * 100)
-
-    return desconto
+    return int((preco_antigo - preco) / preco_antigo * 100)
 
 def produto_viral(vendidos):
 
@@ -177,16 +175,16 @@ def processar_produto(p):
         return False
 
 # -------------------------
-# BUSCA NORMAL
+# RADAR NORMAL
 # -------------------------
 
-def busca_normal():
+def radar_normal():
 
     termo=random.choice(buscas)
 
     print("\n🔎 Busca normal:", termo)
 
-    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=50"
+    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=200"
 
     r=requests.get(url)
 
@@ -210,9 +208,35 @@ def radar_promocoes():
 
     termo=random.choice(buscas)
 
-    print("\n🚨 Radar promoção:", termo)
+    print("\n🚨 Radar promoções:", termo)
 
-    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=date_desc&limit=50"
+    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=date_desc&limit=200"
+
+    r=requests.get(url)
+
+    data=r.json()
+
+    produtos=data["results"]
+
+    for p in produtos:
+
+        if processar_produto(p):
+
+            return True
+
+    return False
+
+# -------------------------
+# RADAR MAIS VENDIDOS
+# -------------------------
+
+def radar_mais_vendidos():
+
+    termo=random.choice(buscas)
+
+    print("\n🔥 Radar mais vendidos:", termo)
+
+    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=sold_quantity_desc&limit=200"
 
     r=requests.get(url)
 
@@ -242,9 +266,13 @@ while True:
 
             radar_promocoes()
 
+        elif contador % 3 == 1:
+
+            radar_mais_vendidos()
+
         else:
 
-            busca_normal()
+            radar_normal()
 
         contador+=1
 
