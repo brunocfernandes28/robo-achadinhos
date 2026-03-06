@@ -1,10 +1,10 @@
-print("ROBO ACHADINHOS FUNCIONANDO 5.0")
+print("ROBO ACHADINHOS FUNCIONANDO 6.0")
 
 import requests
 import time
 import random
 
-TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
+TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk" 
 CHAT_ID = "-1003895577987"
 
 buscas = [
@@ -32,10 +32,56 @@ def enviar(msg):
     }
 
     try:
-        requests.post(url, data=data)
+        requests.post(url, data=data, timeout=10)
         print("📨 Mensagem enviada no Telegram")
     except Exception as e:
         print("Erro Telegram:", e)
+
+
+def buscar_polycard(termo):
+
+    try:
+
+        url = f"https://www.mercadolivre.com.br/polycard/search?query={termo}"
+
+        r = requests.get(url, headers=headers, timeout=10)
+
+        if r.status_code != 200:
+            print("Polycard falhou:", r.status_code)
+            return None
+
+        data = r.json()
+
+        if "results" not in data:
+            return None
+
+        return data["results"]
+
+    except:
+        return None
+
+
+def buscar_api(termo):
+
+    try:
+
+        url = f"https://api.mercadolibre.com/sites/MLB/search?q={termo}"
+
+        r = requests.get(url, headers=headers, timeout=10)
+
+        if r.status_code != 200:
+            print("API bloqueou:", r.status_code)
+            return None
+
+        data = r.json()
+
+        if "results" not in data:
+            return None
+
+        return data["results"]
+
+    except:
+        return None
 
 
 def buscar():
@@ -44,36 +90,26 @@ def buscar():
 
     print("\n🔎 Buscando:", termo)
 
-    url = f"https://www.mercadolivre.com.br/jm/search?q={termo}"
+    produtos = buscar_polycard(termo)
 
-    try:
+    if not produtos:
 
-        r = requests.get(url, headers=headers, timeout=10)
+        print("Polycard falhou, tentando API...")
 
-        if r.status_code != 200:
-            print("Erro HTTP:", r.status_code)
-            return
+        produtos = buscar_api(termo)
 
-        data = r.json()
+    if not produtos:
 
-    except Exception as e:
-        print("Erro requisição:", e)
+        print("❌ Nenhum produto encontrado")
         return
-
-
-    if "results" not in data:
-        print("Nenhum resultado")
-        return
-
-    produtos = data["results"]
 
     print("Produtos encontrados:", len(produtos))
 
     produto = random.choice(produtos)
 
-    titulo = produto["title"]
-    preco = produto["price"]
-    link = produto["permalink"]
+    titulo = produto.get("title", "Produto")
+    preco = produto.get("price", "0")
+    link = produto.get("permalink", "")
 
     print("Produto:", titulo)
     print("Preço:", preco)
@@ -97,6 +133,6 @@ while True:
 
     buscar()
 
-    print("\n⏳ aguardando 20s...")
+    print("\n⏳ aguardando 25s...")
 
-    time.sleep(20)
+    time.sleep(25)
