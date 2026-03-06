@@ -1,25 +1,35 @@
-print("ROBO ACHADINHOS V6.1 INICIADO")
+print("ROBO ACHADINHOS V7.0 INICIADO")
 import requests
+from bs4 import BeautifulSoup
 import time
 import random
 
-TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
-CHAT_ID = "-1003895577987"
+TOKEN = "SEU_TOKEN"
+CHAT_ID = "SEU_CHAT_ID"
+
+buscas = [
+"vestido feminino",
+"lingerie",
+"bolsa feminina",
+"tenis feminino",
+"chapinha cabelo",
+"cafeteira",
+"air fryer",
+"panela antiaderente",
+"carrinho bebe",
+"baba eletronica",
+"aspirador automotivo",
+"compressor ar portatil",
+"carregador veicular",
+"smartwatch",
+"fone bluetooth"
+]
 
 headers = {
 "User-Agent":"Mozilla/5.0"
 }
 
-categorias = [
-"MLB1430",
-"MLB1246",
-"MLB1055",
-"MLB1384",
-"MLB1000",
-"MLB1743"
-]
-
-def enviar_telegram(msg):
+def enviar(msg):
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
@@ -30,76 +40,56 @@ def enviar_telegram(msg):
 
     requests.post(url,data=data)
 
-def calcular_desconto(preco, antigo):
-
-    if antigo is None:
-        return 0
-
-    try:
-        return int((antigo-preco)/antigo*100)
-    except:
-        return 0
-
 def buscar():
 
-    categoria = random.choice(categorias)
+    termo=random.choice(buscas)
 
-    print("\n🔎 Radar categoria:",categoria)
+    print("\n🔎 Radar busca:",termo)
 
-    url=f"https://api.mercadolibre.com/sites/MLB/search?category={categoria}&limit=50"
+    url=f"https://lista.mercadolivre.com.br/{termo.replace(' ','-')}"
 
     r=requests.get(url,headers=headers)
 
-    data=r.json()
+    soup=BeautifulSoup(r.text,"html.parser")
 
-    produtos=data.get("results",[])
+    produtos=soup.select("li.ui-search-layout__item")
 
     print("Produtos encontrados:",len(produtos))
 
-    for p in produtos:
+    for p in produtos[:20]:
 
         try:
 
-            titulo=p["title"]
-            preco=p["price"]
-            antigo=p.get("original_price")
-            vendidos=p["sold_quantity"]
-            link=p["permalink"]
+            titulo=p.select_one("h2").text.strip()
 
-            desconto=calcular_desconto(preco,antigo)
+            link=p.select_one("a")["href"]
+
+            preco=p.select_one(".andes-money-amount__fraction").text
+
+            vendidos=p.text.lower()
 
             print("\nProduto analisado")
-            print("Titulo:",titulo)
-            print("Desconto:",desconto)
-            print("Vendidos:",vendidos)
+            print(titulo)
 
-            if desconto>=30 and vendidos>=20:
+            if "vendido" in vendidos:
 
-                print("✅ ACHADINHO ENCONTRADO")
+                print("Produto popular")
 
-                msg=f"""
+            msg=f"""
 🔥 ACHADINHO ENCONTRADO
 
 🛍 {titulo}
 
-💰 De: R${antigo}
-💸 Por: R${preco}
-
-🔥 {desconto}% OFF
-📦 {vendidos} vendidos
+💰 R${preco}
 
 🛒 {link}
 
 ⚡ Promoção pode acabar a qualquer momento
 """
 
-                enviar_telegram(msg)
+            enviar(msg)
 
-                return
-
-            else:
-
-                print("❌ reprovado")
+            return
 
         except:
             continue
