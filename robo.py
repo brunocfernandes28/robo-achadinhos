@@ -1,3 +1,4 @@
+print("ROBO ACHADINHOS V4.2 INICIADO")
 import requests
 import time
 import sqlite3
