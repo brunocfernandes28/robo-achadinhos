@@ -1,9 +1,8 @@
-print("ROBO ACHADINHOS FUNCIONANDO 8.0")
+print("ROBO ACHADINHOS FUNCIONANDO 9.0")
 
 import requests
-from bs4 import BeautifulSoup
-import time
 import random
+import time
 
 TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
 CHAT_ID = "-1003895577987"
@@ -18,24 +17,18 @@ buscas = [
 "tenis feminino"
 ]
 
-headers = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-"Accept-Language": "pt-BR,pt;q=0.9"
-}
-
-
 def enviar(msg):
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
-    data = {
+    payload = {
         "chat_id": CHAT_ID,
         "text": msg
     }
 
     try:
-        requests.post(url, data=data)
-        print("📨 Mensagem enviada no Telegram")
+        requests.post(url, data=payload, timeout=10)
+        print("Mensagem enviada no Telegram")
     except Exception as e:
         print("Erro Telegram:", e)
 
@@ -44,61 +37,52 @@ def buscar():
 
     termo = random.choice(buscas)
 
-    print("\n🔎 Buscando:", termo)
+    print("\nBuscando:", termo)
 
-    url = f"https://lista.mercadolivre.com.br/{termo.replace(' ','-')}"
+    url = "https://api.mercadolibre.com/sites/MLB/search"
+
+    params = {
+        "q": termo,
+        "limit": 20
+    }
 
     try:
 
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(url, params=params, timeout=10)
 
         if r.status_code != 200:
             print("Erro HTTP:", r.status_code)
             return
 
-        soup = BeautifulSoup(r.text, "html.parser")
+        data = r.json()
 
     except Exception as e:
         print("Erro requisição:", e)
         return
 
 
-    produtos = soup.select("li.ui-search-layout__item")
+    produtos = data.get("results", [])
 
     print("Produtos encontrados:", len(produtos))
 
-    if len(produtos) == 0:
+    if not produtos:
         return
 
 
-    p = random.choice(produtos)
+    produto = random.choice(produtos)
 
-    try:
-
-        titulo = p.select_one("h2").get_text(strip=True)
-
-        link = p.select_one("a")["href"]
-
-        preco = p.select_one(".andes-money-amount__fraction").get_text()
-
-    except:
-        return
-
-
-    print("Produto:", titulo)
-    print("Preço:", preco)
-
+    titulo = produto.get("title")
+    preco = produto.get("price")
+    link = produto.get("permalink")
 
     msg = f"""
-🔥 ACHADINHO ENCONTRADO
+🔥 ACHADINHO
 
 🛍 {titulo}
 
 💰 R${preco}
 
 🛒 {link}
-
-⚡ Promoção pode acabar a qualquer momento
 """
 
     enviar(msg)
@@ -108,6 +92,6 @@ while True:
 
     buscar()
 
-    print("\n⏳ aguardando 30s...")
+    print("\nAguardando 60s...\n")
 
-    time.sleep(30)
+    time.sleep(60)
