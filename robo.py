@@ -1,4 +1,4 @@
-print("ROBO ACHADINHOS FUNCIONANDO 4.0")
+print("ROBO ACHADINHOS FUNCIONANDO 5.0")
 
 import requests
 import time
@@ -18,10 +18,8 @@ buscas = [
 ]
 
 headers = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
-"Accept": "application/json",
-"Accept-Language": "pt-BR,pt;q=0.9",
-"Connection": "keep-alive"
+"User-Agent": "Mozilla/5.0",
+"Accept": "application/json"
 }
 
 def enviar(msg):
@@ -34,7 +32,7 @@ def enviar(msg):
     }
 
     try:
-        requests.post(url, data=data, timeout=10)
+        requests.post(url, data=data)
         print("📨 Mensagem enviada no Telegram")
     except Exception as e:
         print("Erro Telegram:", e)
@@ -46,14 +44,14 @@ def buscar():
 
     print("\n🔎 Buscando:", termo)
 
-    url = f"https://api.mercadolibre.com/sites/MLB/search?q={termo}"
+    url = f"https://www.mercadolivre.com.br/jm/search?q={termo}"
 
     try:
 
         r = requests.get(url, headers=headers, timeout=10)
 
         if r.status_code != 200:
-            print("⚠️ API bloqueou:", r.status_code)
+            print("Erro HTTP:", r.status_code)
             return
 
         data = r.json()
@@ -64,21 +62,18 @@ def buscar():
 
 
     if "results" not in data:
-        print("⚠️ API não retornou produtos")
+        print("Nenhum resultado")
         return
 
     produtos = data["results"]
 
     print("Produtos encontrados:", len(produtos))
 
-    if not produtos:
-        return
-
     produto = random.choice(produtos)
 
-    titulo = produto.get("title")
-    preco = produto.get("price")
-    link = produto.get("permalink")
+    titulo = produto["title"]
+    preco = produto["price"]
+    link = produto["permalink"]
 
     print("Produto:", titulo)
     print("Preço:", preco)
@@ -102,6 +97,6 @@ while True:
 
     buscar()
 
-    print("\n⏳ aguardando 15s...")
+    print("\n⏳ aguardando 20s...")
 
-    time.sleep(15)
+    time.sleep(20)
