@@ -1,4 +1,4 @@
-print("ROBO ACHADINHOS V8.0 INICIADO")
+print("ROBO ACHADINHOS V9.0 INICIADO")
 import requests
 from bs4 import BeautifulSoup
 import time
@@ -9,12 +9,12 @@ CHAT_ID = "-1003895577987"
 
 buscas = [
 "smartwatch",
+"fone bluetooth",
 "chapinha cabelo",
 "bolsa feminina",
 "air fryer",
 "cafeteira",
-"tenis feminino",
-"fone bluetooth"
+"tenis feminino"
 ]
 
 headers = {
@@ -31,6 +31,7 @@ def enviar(msg):
     }
 
     requests.post(url, data=data)
+
 
 def buscar():
 
@@ -52,9 +53,19 @@ def buscar():
 
         try:
 
-            titulo = p.select_one("h2").get_text(strip=True)
+            titulo_tag = p.select_one("h2")
 
-            link = p.select_one("a")["href"]
+            if not titulo_tag:
+                continue
+
+            titulo = titulo_tag.get_text(strip=True)
+
+            link_tag = p.select_one("a")
+
+            if not link_tag:
+                continue
+
+            link = link_tag["href"]
 
             preco_tag = p.select_one(".andes-money-amount__fraction")
 
@@ -69,16 +80,18 @@ def buscar():
 
             if "vendidos" in texto:
 
-                partes = texto.split("vendidos")[0].split()
-
-                vendidos = int(partes[-1])
+                try:
+                    partes = texto.split("vendidos")[0].split()
+                    vendidos = int(partes[-1])
+                except:
+                    vendidos = 0
 
             print("\nProduto analisado")
             print("Título:", titulo)
             print("Preço:", preco)
             print("Vendidos:", vendidos)
 
-            if vendidos >= 50:
+            if vendidos >= 30:
 
                 print("✅ ACHADINHO ENCONTRADO")
 
@@ -108,10 +121,11 @@ def buscar():
 
             print("Erro no produto:", e)
 
+
 while True:
 
     buscar()
 
-    print("\n⏳ próximo scan em 1 segundo")
+    print("\n⏳ próximo scan em 1s")
 
     time.sleep(1)
