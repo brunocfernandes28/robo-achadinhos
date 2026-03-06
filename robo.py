@@ -9,6 +9,10 @@ CHAT_ID = "-1003895577987"
 
 POSTS_POR_HORA = 3
 
+headers = {
+"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+}
+
 buscas = [
 "vestido feminino","lingerie","bolsa feminina","tenis feminino","tenis masculino",
 "chapinha cabelo","escova secadora","secador cabelo","depilador eletrico",
@@ -20,9 +24,9 @@ buscas = [
 "caixa som bluetooth","power bank","suporte celular carro"
 ]
 
-# --------------------
+# -----------------------
 # BANCO
-# --------------------
+# -----------------------
 
 conn = sqlite3.connect("historico.db")
 cursor = conn.cursor()
@@ -35,16 +39,16 @@ id TEXT PRIMARY KEY
 
 conn.commit()
 
-# --------------------
+# -----------------------
 # CONTROLE POSTS
-# --------------------
+# -----------------------
 
 posts_hora = 0
 hora_atual = datetime.now().hour
 
-# --------------------
+# -----------------------
 # TELEGRAM
-# --------------------
+# -----------------------
 
 def enviar(msg, imagem):
 
@@ -58,39 +62,39 @@ def enviar(msg, imagem):
         "photo": imagem
     }
 
-    requests.post(url, data=data)
+    requests.post(url,data=data)
 
     posts_hora += 1
 
-# --------------------
+# -----------------------
 # HISTORICO
-# --------------------
+# -----------------------
 
 def existe(pid):
 
-    cursor.execute("SELECT id FROM produtos WHERE id=?", (pid,))
+    cursor.execute("SELECT id FROM produtos WHERE id=?",(pid,))
     return cursor.fetchone() is not None
 
 
 def salvar(pid):
 
-    cursor.execute("INSERT INTO produtos VALUES(?)", (pid,))
+    cursor.execute("INSERT INTO produtos VALUES(?)",(pid,))
     conn.commit()
 
-# --------------------
+# -----------------------
 # DESCONTO
-# --------------------
+# -----------------------
 
-def desconto(preco, antigo):
+def calcular_desconto(preco,antigo):
 
     if not antigo:
         return 0
 
     return int((antigo-preco)/antigo*100)
 
-# --------------------
-# PROCESSAR
-# --------------------
+# -----------------------
+# PROCESSAR PRODUTO
+# -----------------------
 
 def processar(p):
 
@@ -106,7 +110,7 @@ def processar(p):
 
         if posts_hora >= POSTS_POR_HORA:
 
-            print("🚫 limite de posts")
+            print("🚫 limite de posts por hora atingido")
             return False
 
         pid = p["id"]
@@ -120,17 +124,17 @@ def processar(p):
         vendidos = p["sold_quantity"]
         link = p["permalink"]
 
-        img = p["thumbnail"].replace("-I.jpg","-O.jpg")
+        imagem = p["thumbnail"].replace("-I.jpg","-O.jpg")
 
-        desc = desconto(preco, antigo)
+        desc = calcular_desconto(preco,antigo)
+
+        print("\nProduto analisado")
+        print("Titulo:",titulo)
+        print("Desconto:",desc)
+        print("Vendidos:",vendidos)
 
         aprovado = False
         alerta = ""
-
-        print("\nProduto analisado")
-        print(titulo)
-        print("Desconto:", desc)
-        print("Vendidos:", vendidos)
 
         if desc >= 25:
 
@@ -144,7 +148,7 @@ def processar(p):
 
         if antigo and desc >= 70:
 
-            alerta="⚠️ ERRO DE PREÇO"
+            alerta="⚠️ POSSÍVEL ERRO DE PREÇO"
             aprovado=True
 
         if not aprovado:
@@ -170,7 +174,7 @@ def processar(p):
 ⚡ Promoção pode acabar a qualquer momento
 """
 
-        enviar(msg,img)
+        enviar(msg,imagem)
 
         salvar(pid)
 
@@ -178,87 +182,63 @@ def processar(p):
 
     except Exception as e:
 
-        print("Erro:",e)
+        print("Erro ao processar:",e)
         return False
 
-# --------------------
-# RADARES
-# --------------------
+# -----------------------
+# RADAR
+# -----------------------
 
-def radar_normal():
-
-    termo=random.choice(buscas)
-
-    print("🔎 busca:",termo)
-
-    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=200"
-
-    r=requests.get(url)
-
-    data=r.json()
-
-    for p in data["results"]:
-
-        if processar(p):
-            break
-
-
-def radar_viral():
+def radar(tipo):
 
     termo=random.choice(buscas)
 
-    print("🔥 viral:",termo)
+    print(f"\n🔎 Radar {tipo}: {termo}")
 
-    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=sold_quantity_desc&limit=200"
+    if tipo=="promo":
 
-    r=requests.get(url)
+        url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=date_desc&limit=200"
 
-    data=r.json()
+    elif tipo=="viral":
 
-    for p in data["results"]:
+        url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=sold_quantity_desc&limit=200"
 
-        if processar(p):
-            break
+    elif tipo=="recente":
 
+        url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=last_updated_desc&limit=200"
 
-def radar_promocao():
+    else:
 
-    termo=random.choice(buscas)
+        url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=200"
 
-    print("🚨 promoção:",termo)
+    try:
 
-    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=date_desc&limit=200"
+        r=requests.get(url,headers=headers,timeout=20)
 
-    r=requests.get(url)
+        data=r.json()
 
-    data=r.json()
+        produtos=data.get("results",[])
 
-    for p in data["results"]:
+        print("Produtos encontrados:",len(produtos))
 
-        if processar(p):
-            break
+        if len(produtos)==0:
 
+            print("⚠ API retornou vazio")
+            return
 
-def radar_recente():
+        for p in produtos:
 
-    termo=random.choice(buscas)
+            if processar(p):
 
-    print("⚡ recente:",termo)
+                break
 
-    url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=last_updated_desc&limit=200"
+    except Exception as e:
 
-    r=requests.get(url)
+        print("Erro na API:",e)
 
-    data=r.json()
-
-    for p in data["results"]:
-
-        if processar(p):
-            break
-
-# --------------------
-# LOOP
-# --------------------
+# -----------------------
+# LOOP PRINCIPAL
+# -----------------------
 
 radares=["promo","viral","recente","normal"]
 
@@ -266,24 +246,10 @@ contador=0
 
 while True:
 
-    if radares[contador%4]=="promo":
-
-        radar_promocao()
-
-    elif radares[contador%4]=="viral":
-
-        radar_viral()
-
-    elif radares[contador%4]=="recente":
-
-        radar_recente()
-
-    else:
-
-        radar_normal()
+    radar(radares[contador%4])
 
     contador+=1
 
-    print("\n⏳ próximo scan 3 minutos\n")
+    print("\n⏳ próximo scan em 3 minutos\n")
 
     time.sleep(180)
