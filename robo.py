@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import re
-import os
+import sqlite3
 
 TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
 CHAT_ID = "-1003895577987"
@@ -22,30 +22,27 @@ buscas = [
 
 headers = {"User-Agent": "Mozilla/5.0"}
 
-ARQUIVO_MEMORIA = "produtos_postados.txt"
+# -------------------------
+# BANCO DE DADOS
+# -------------------------
 
-if not os.path.exists(ARQUIVO_MEMORIA):
-    open(ARQUIVO_MEMORIA, "w").close()
+conn = sqlite3.connect("historico.db")
+cursor = conn.cursor()
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS produtos(
+id TEXT PRIMARY KEY
+)
+""")
 
-def carregar_memoria():
+conn.commit()
 
-    with open(ARQUIVO_MEMORIA,"r") as f:
-        return set(l.strip() for l in f.readlines())
-
-
-def salvar_produto(pid):
-
-    with open(ARQUIVO_MEMORIA,"a") as f:
-        f.write(pid+"\n")
-
-
-produtos_vistos = carregar_memoria()
-
+# -------------------------
+# FUNÇÕES AUXILIARES
+# -------------------------
 
 def numero(txt):
     return int(re.sub("[^0-9]", "", txt))
-
 
 def extrair_id(link):
 
@@ -56,24 +53,35 @@ def extrair_id(link):
 
     return link
 
+def produto_existe(pid):
 
-def limpar_titulo(t):
-    t = re.sub(r'\s+', ' ', t)
-    return t.strip()
+    cursor.execute("SELECT id FROM produtos WHERE id=?",(pid,))
+    return cursor.fetchone() is not None
 
+def salvar_produto(pid):
 
-def enviar_telegram(msg, imagem):
+    cursor.execute("INSERT INTO produtos VALUES(?)",(pid,))
+    conn.commit()
+
+# -------------------------
+# TELEGRAM
+# -------------------------
+
+def enviar_telegram(msg,imagem):
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
 
     data = {
-        "chat_id": CHAT_ID,
-        "caption": msg,
-        "photo": imagem
+        "chat_id":CHAT_ID,
+        "caption":msg,
+        "photo":imagem
     }
 
-    requests.post(url, data=data)
+    requests.post(url,data=data)
 
+# -------------------------
+# DETECTORES
+# -------------------------
 
 def detectar_frete(card):
 
@@ -89,7 +97,7 @@ def detectar_vendas(card):
 
     txt = card.text.lower()
 
-    if "vendid" in txt or "+100" in txt or "+500" in txt:
+    if "+100" in txt or "+500" in txt or "vendid" in txt:
         return True
 
     return False
@@ -107,27 +115,31 @@ def produto_viral(card):
 
     return score >= 1
 
+# -------------------------
+# BUSCA
+# -------------------------
 
 def buscar():
 
     for termo in buscas:
 
-        print("\n🔎 Buscando:", termo)
+        print("\n🔎 Buscando:",termo)
 
         url = f"https://lista.mercadolivre.com.br/{termo.replace(' ','-')}"
 
-        r = requests.get(url, headers=headers)
+        r = requests.get(url,headers=headers)
 
-        soup = BeautifulSoup(r.text, "html.parser")
+        soup = BeautifulSoup(r.text,"html.parser")
 
         cards = soup.select(".poly-card")
+
+        print("Produtos encontrados:",len(cards))
 
         for card in cards[:30]:
 
             try:
 
-                titulo = card.select_one(".poly-component__title").text
-                titulo = limpar_titulo(titulo)
+                titulo = card.select_one(".poly-component__title").text.strip()
 
                 link = card.select_one("a.poly-component__title")["href"]
 
@@ -136,7 +148,7 @@ def buscar():
 
                 produto_id = extrair_id(link)
 
-                if produto_id in produtos_vistos:
+                if produto_existe(produto_id):
                     continue
 
                 preco_atual = card.select_one(".andes-money-amount__fraction")
@@ -148,7 +160,7 @@ def buscar():
                 preco_atual = numero(preco_atual.text)
                 preco_antigo = numero(preco_antigo.text)
 
-                desconto = int((preco_antigo - preco_atual) / preco_antigo * 100)
+                desconto = int((preco_antigo-preco_atual)/preco_antigo*100)
 
                 if desconto < 30:
                     continue
@@ -158,11 +170,12 @@ def buscar():
 
                 imagem = card.select_one("img")["src"]
 
-                frete_msg = ""
-                if detectar_frete(card):
-                    frete_msg = "🚚 Frete bom\n"
+                frete_msg=""
 
-                msg = f"""
+                if detectar_frete(card):
+                    frete_msg="🚚 Frete bom\n"
+
+                msg=f"""
 🔥 ACHADINHO RELÂMPAGO
 
 🛍 {titulo}
@@ -180,9 +193,8 @@ def buscar():
 
                 print(msg)
 
-                enviar_telegram(msg, imagem)
+                enviar_telegram(msg,imagem)
 
-                produtos_vistos.add(produto_id)
                 salvar_produto(produto_id)
 
                 return
@@ -190,6 +202,9 @@ def buscar():
             except:
                 continue
 
+# -------------------------
+# LOOP
+# -------------------------
 
 while True:
 
