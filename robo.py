@@ -1,11 +1,12 @@
-print("ROBO ACHADINHOS V9.0 INICIADO")
+print("ROBO ACHADINHOS FUNCIONANDO")
+
 import requests
 from bs4 import BeautifulSoup
 import time
 import random
 
-TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
-CHAT_ID = "-1003895577987"
+TOKEN = "SEU_TOKEN_AQUI"
+CHAT_ID = "SEU_CHAT_ID_AQUI"
 
 buscas = [
 "smartwatch",
@@ -18,7 +19,9 @@ buscas = [
 ]
 
 headers = {
-"User-Agent": "Mozilla/5.0"
+"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+"Accept-Language": "pt-BR,pt;q=0.9",
+"Accept": "text/html"
 }
 
 def enviar(msg):
@@ -30,14 +33,18 @@ def enviar(msg):
         "text": msg
     }
 
-    requests.post(url, data=data)
+    try:
+        requests.post(url, data=data)
+        print("📨 Mensagem enviada no Telegram")
+    except:
+        print("Erro ao enviar mensagem")
 
 
 def buscar():
 
     termo = random.choice(buscas)
 
-    print("\n🔎 Radar busca:", termo)
+    print("\n🔎 Buscando:", termo)
 
     url = f"https://lista.mercadolivre.com.br/{termo.replace(' ','-')}"
 
@@ -49,7 +56,11 @@ def buscar():
 
     print("Produtos encontrados:", len(produtos))
 
-    for p in produtos[:20]:
+    if len(produtos) == 0:
+        print("⚠️ Nenhum produto encontrado")
+        return
+
+    for p in produtos[:5]:
 
         try:
 
@@ -74,58 +85,32 @@ def buscar():
 
             preco = preco_tag.get_text()
 
-            texto = p.get_text().lower()
-
-            vendidos = 0
-
-            if "vendidos" in texto:
-
-                try:
-                    partes = texto.split("vendidos")[0].split()
-                    vendidos = int(partes[-1])
-                except:
-                    vendidos = 0
-
-            print("\nProduto analisado")
-            print("Título:", titulo)
+            print("Produto:", titulo)
             print("Preço:", preco)
-            print("Vendidos:", vendidos)
 
-            if vendidos >= 30:
-
-                print("✅ ACHADINHO ENCONTRADO")
-
-                msg = f"""
-🔥 ACHADINHO ENCONTRADO
+            msg = f"""
+🔥 Produto encontrado
 
 🛍 {titulo}
 
 💰 R${preco}
 
-📦 {vendidos} vendidos
-
 🛒 {link}
-
-⚡ Promoção pode acabar a qualquer momento
 """
 
-                enviar(msg)
+            enviar(msg)
 
-                return
-
-            else:
-
-                print("❌ reprovado")
+            return
 
         except Exception as e:
 
-            print("Erro no produto:", e)
+            print("Erro analisando produto:", e)
 
 
 while True:
 
     buscar()
 
-    print("\n⏳ próximo scan em 1s")
+    print("\n⏳ aguardando 8s...")
 
-    time.sleep(1)
+    time.sleep(8)
