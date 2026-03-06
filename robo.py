@@ -5,8 +5,8 @@ import sqlite3
 import random
 from datetime import datetime
 
-TOKEN = "SEU_TOKEN"
-CHAT_ID = "SEU_CHAT_ID"
+TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
+CHAT_ID = "-1003895577987"
 
 POSTS_POR_HORA = 3
 
