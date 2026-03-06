@@ -1,4 +1,4 @@
-print("ROBO ACHADINHOS FUNCIONANDO 2.0")
+print("ROBO ACHADINHOS FUNCIONANDO 3.0")
 
 import requests
 import time
@@ -27,10 +27,10 @@ def enviar(msg):
     }
 
     try:
-        requests.post(url, data=data)
+        requests.post(url, data=data, timeout=10)
         print("📨 Mensagem enviada no Telegram")
-    except:
-        print("Erro ao enviar mensagem")
+    except Exception as e:
+        print("Erro ao enviar Telegram:", e)
 
 
 def buscar():
@@ -41,23 +41,30 @@ def buscar():
 
     url = f"https://api.mercadolibre.com/sites/MLB/search?q={termo}"
 
-    r = requests.get(url)
+    try:
+        r = requests.get(url, timeout=10)
+        data = r.json()
+    except Exception as e:
+        print("Erro na requisição:", e)
+        return
 
-    data = r.json()
+    if "results" not in data:
+        print("⚠️ API não retornou produtos")
+        print(data)
+        return
 
     produtos = data["results"]
 
     print("Produtos encontrados:", len(produtos))
 
     if len(produtos) == 0:
-        print("⚠️ Nenhum produto encontrado")
         return
 
     produto = random.choice(produtos)
 
-    titulo = produto["title"]
-    preco = produto["price"]
-    link = produto["permalink"]
+    titulo = produto.get("title", "Produto")
+    preco = produto.get("price", "0")
+    link = produto.get("permalink", "")
 
     print("Produto:", titulo)
     print("Preço:", preco)
