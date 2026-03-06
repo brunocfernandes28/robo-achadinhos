@@ -1,8 +1,9 @@
-print("ROBO ACHADINHOS FUNCIONANDO 9.0")
+print("ROBO ACHADINHOS FUNCIONANDO RSS")
 
 import requests
 import random
 import time
+import xml.etree.ElementTree as ET
 
 TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
 CHAT_ID = "-1003895577987"
@@ -17,18 +18,19 @@ buscas = [
 "tenis feminino"
 ]
 
+
 def enviar(msg):
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
-    payload = {
+    data = {
         "chat_id": CHAT_ID,
         "text": msg
     }
 
     try:
-        requests.post(url, data=payload, timeout=10)
-        print("Mensagem enviada no Telegram")
+        requests.post(url, data=data)
+        print("📨 Mensagem enviada no Telegram")
     except Exception as e:
         print("Erro Telegram:", e)
 
@@ -37,50 +39,43 @@ def buscar():
 
     termo = random.choice(buscas)
 
-    print("\nBuscando:", termo)
+    print("\n🔎 Buscando:", termo)
 
-    url = "https://api.mercadolibre.com/sites/MLB/search"
-
-    params = {
-        "q": termo,
-        "limit": 20
-    }
+    url = f"https://www.mercadolivre.com.br/rss/search?q={termo}"
 
     try:
 
-        r = requests.get(url, params=params, timeout=10)
+        r = requests.get(url, timeout=10)
 
         if r.status_code != 200:
             print("Erro HTTP:", r.status_code)
             return
 
-        data = r.json()
+        root = ET.fromstring(r.content)
 
     except Exception as e:
         print("Erro requisição:", e)
         return
 
 
-    produtos = data.get("results", [])
+    itens = root.findall(".//item")
 
-    print("Produtos encontrados:", len(produtos))
+    print("Produtos encontrados:", len(itens))
 
-    if not produtos:
+    if not itens:
         return
 
 
-    produto = random.choice(produtos)
+    item = random.choice(itens)
 
-    titulo = produto.get("title")
-    preco = produto.get("price")
-    link = produto.get("permalink")
+    titulo = item.find("title").text
+    link = item.find("link").text
+
 
     msg = f"""
 🔥 ACHADINHO
 
 🛍 {titulo}
-
-💰 R${preco}
 
 🛒 {link}
 """
@@ -92,6 +87,6 @@ while True:
 
     buscar()
 
-    print("\nAguardando 60s...\n")
+    print("\n⏳ aguardando 60s...\n")
 
     time.sleep(60)
