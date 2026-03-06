@@ -1,10 +1,11 @@
-print("ROBO ACHADINHOS FUNCIONANDO 6.0")
+print("ROBO ACHADINHOS FUNCIONANDO 8.0")
 
 import requests
+from bs4 import BeautifulSoup
 import time
 import random
 
-TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk" 
+TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
 CHAT_ID = "-1003895577987"
 
 buscas = [
@@ -18,9 +19,10 @@ buscas = [
 ]
 
 headers = {
-"User-Agent": "Mozilla/5.0",
-"Accept": "application/json"
+"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+"Accept-Language": "pt-BR,pt;q=0.9"
 }
+
 
 def enviar(msg):
 
@@ -32,56 +34,10 @@ def enviar(msg):
     }
 
     try:
-        requests.post(url, data=data, timeout=10)
+        requests.post(url, data=data)
         print("📨 Mensagem enviada no Telegram")
     except Exception as e:
         print("Erro Telegram:", e)
-
-
-def buscar_polycard(termo):
-
-    try:
-
-        url = f"https://www.mercadolivre.com.br/polycard/search?query={termo}"
-
-        r = requests.get(url, headers=headers, timeout=10)
-
-        if r.status_code != 200:
-            print("Polycard falhou:", r.status_code)
-            return None
-
-        data = r.json()
-
-        if "results" not in data:
-            return None
-
-        return data["results"]
-
-    except:
-        return None
-
-
-def buscar_api(termo):
-
-    try:
-
-        url = f"https://api.mercadolibre.com/sites/MLB/search?q={termo}"
-
-        r = requests.get(url, headers=headers, timeout=10)
-
-        if r.status_code != 200:
-            print("API bloqueou:", r.status_code)
-            return None
-
-        data = r.json()
-
-        if "results" not in data:
-            return None
-
-        return data["results"]
-
-    except:
-        return None
 
 
 def buscar():
@@ -90,29 +46,48 @@ def buscar():
 
     print("\n🔎 Buscando:", termo)
 
-    produtos = buscar_polycard(termo)
+    url = f"https://lista.mercadolivre.com.br/{termo.replace(' ','-')}"
 
-    if not produtos:
+    try:
 
-        print("Polycard falhou, tentando API...")
+        r = requests.get(url, headers=headers, timeout=10)
 
-        produtos = buscar_api(termo)
+        if r.status_code != 200:
+            print("Erro HTTP:", r.status_code)
+            return
 
-    if not produtos:
+        soup = BeautifulSoup(r.text, "html.parser")
 
-        print("❌ Nenhum produto encontrado")
+    except Exception as e:
+        print("Erro requisição:", e)
         return
+
+
+    produtos = soup.select("li.ui-search-layout__item")
 
     print("Produtos encontrados:", len(produtos))
 
-    produto = random.choice(produtos)
+    if len(produtos) == 0:
+        return
 
-    titulo = produto.get("title", "Produto")
-    preco = produto.get("price", "0")
-    link = produto.get("permalink", "")
+
+    p = random.choice(produtos)
+
+    try:
+
+        titulo = p.select_one("h2").get_text(strip=True)
+
+        link = p.select_one("a")["href"]
+
+        preco = p.select_one(".andes-money-amount__fraction").get_text()
+
+    except:
+        return
+
 
     print("Produto:", titulo)
     print("Preço:", preco)
+
 
     msg = f"""
 🔥 ACHADINHO ENCONTRADO
@@ -133,6 +108,6 @@ while True:
 
     buscar()
 
-    print("\n⏳ aguardando 25s...")
+    print("\n⏳ aguardando 30s...")
 
-    time.sleep(25)
+    time.sleep(30)
