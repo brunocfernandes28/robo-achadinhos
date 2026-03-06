@@ -1,4 +1,4 @@
-print("ROBO ACHADINHOS V6.0 INICIADO")
+print("ROBO ACHADINHOS V6.1 INICIADO")
 import requests
 import time
 import random
