@@ -24,9 +24,9 @@ buscas = [
 "caixa som bluetooth","power bank","suporte celular carro"
 ]
 
-# -----------------------
+# --------------------
 # BANCO
-# -----------------------
+# --------------------
 
 conn = sqlite3.connect("historico.db")
 cursor = conn.cursor()
@@ -39,51 +39,50 @@ id TEXT PRIMARY KEY
 
 conn.commit()
 
-# -----------------------
+# --------------------
 # CONTROLE POSTS
-# -----------------------
+# --------------------
 
 posts_hora = 0
 hora_atual = datetime.now().hour
 
-# -----------------------
+# --------------------
 # TELEGRAM
-# -----------------------
+# --------------------
 
-def enviar(msg, imagem):
+def enviar(msg,img):
 
     global posts_hora
 
-    url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
+    url=f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
 
-    data = {
-        "chat_id": CHAT_ID,
-        "caption": msg,
-        "photo": imagem
+    data={
+    "chat_id":CHAT_ID,
+    "caption":msg,
+    "photo":img
     }
 
     requests.post(url,data=data)
 
-    posts_hora += 1
+    posts_hora+=1
 
-# -----------------------
+# --------------------
 # HISTORICO
-# -----------------------
+# --------------------
 
 def existe(pid):
 
     cursor.execute("SELECT id FROM produtos WHERE id=?",(pid,))
     return cursor.fetchone() is not None
 
-
 def salvar(pid):
 
     cursor.execute("INSERT INTO produtos VALUES(?)",(pid,))
     conn.commit()
 
-# -----------------------
+# --------------------
 # DESCONTO
-# -----------------------
+# --------------------
 
 def calcular_desconto(preco,antigo):
 
@@ -92,9 +91,9 @@ def calcular_desconto(preco,antigo):
 
     return int((antigo-preco)/antigo*100)
 
-# -----------------------
-# PROCESSAR PRODUTO
-# -----------------------
+# --------------------
+# PROCESSAR
+# --------------------
 
 def processar(p):
 
@@ -105,50 +104,50 @@ def processar(p):
 
         if datetime.now().hour != hora_atual:
 
-            posts_hora = 0
-            hora_atual = datetime.now().hour
+            posts_hora=0
+            hora_atual=datetime.now().hour
 
-        if posts_hora >= POSTS_POR_HORA:
+        if posts_hora>=POSTS_POR_HORA:
 
-            print("🚫 limite de posts por hora atingido")
+            print("🚫 limite de posts atingido")
             return False
 
-        pid = p["id"]
+        pid=p["id"]
 
         if existe(pid):
             return False
 
-        titulo = p["title"]
-        preco = p["price"]
-        antigo = p.get("original_price")
-        vendidos = p["sold_quantity"]
-        link = p["permalink"]
+        titulo=p["title"]
+        preco=p["price"]
+        antigo=p.get("original_price")
+        vendidos=p["sold_quantity"]
+        link=p["permalink"]
 
-        imagem = p["thumbnail"].replace("-I.jpg","-O.jpg")
+        img=p["thumbnail"].replace("-I.jpg","-O.jpg")
 
-        desc = calcular_desconto(preco,antigo)
+        desc=calcular_desconto(preco,antigo)
 
         print("\nProduto analisado")
         print("Titulo:",titulo)
         print("Desconto:",desc)
         print("Vendidos:",vendidos)
 
-        aprovado = False
-        alerta = ""
+        aprovado=False
+        alerta=""
 
-        if desc >= 25:
+        if desc>=25:
 
             alerta="🔥 OFERTA"
             aprovado=True
 
-        if vendidos >= 50:
+        if vendidos>=50:
 
             alerta="🔥 PRODUTO VIRAL"
             aprovado=True
 
-        if antigo and desc >= 70:
+        if antigo and desc>=70:
 
-            alerta="⚠️ POSSÍVEL ERRO DE PREÇO"
+            alerta="⚠️ ERRO DE PREÇO"
             aprovado=True
 
         if not aprovado:
@@ -174,7 +173,7 @@ def processar(p):
 ⚡ Promoção pode acabar a qualquer momento
 """
 
-        enviar(msg,imagem)
+        enviar(msg,img)
 
         salvar(pid)
 
@@ -182,12 +181,12 @@ def processar(p):
 
     except Exception as e:
 
-        print("Erro ao processar:",e)
+        print("Erro:",e)
         return False
 
-# -----------------------
+# --------------------
 # RADAR
-# -----------------------
+# --------------------
 
 def radar(tipo):
 
@@ -221,10 +220,20 @@ def radar(tipo):
 
         print("Produtos encontrados:",len(produtos))
 
+        # fallback
         if len(produtos)==0:
 
-            print("⚠ API retornou vazio")
-            return
+            print("⚠ API vazia → fallback busca normal")
+
+            url=f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=200"
+
+            r=requests.get(url,headers=headers)
+
+            data=r.json()
+
+            produtos=data.get("results",[])
+
+            print("Produtos fallback:",len(produtos))
 
         for p in produtos:
 
@@ -234,11 +243,11 @@ def radar(tipo):
 
     except Exception as e:
 
-        print("Erro na API:",e)
+        print("Erro API:",e)
 
-# -----------------------
-# LOOP PRINCIPAL
-# -----------------------
+# --------------------
+# LOOP
+# --------------------
 
 radares=["promo","viral","recente","normal"]
 
