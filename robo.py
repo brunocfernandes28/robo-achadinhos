@@ -4,7 +4,7 @@ import time
 import re
 import os
 
-TOKEN = "SEU_TOKEN_TELEGRAM"
+TOKEN = "7943259231:AAGrv6bYjdGABhKrr9W2i_roYWDmCcYKIhk"
 CHAT_ID = "-1003895577987"
 
 buscas = [
